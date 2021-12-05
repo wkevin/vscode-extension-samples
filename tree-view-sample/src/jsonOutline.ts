@@ -2,10 +2,26 @@ import * as vscode from 'vscode';
 import * as json from 'jsonc-parser';
 import * as path from 'path';
 
+// 写好一个  view 的 Provider 需要注意几点：
+// 1. 与 View 交互：
+// 		用 onDidChangeTreeData 向 view 发消息
+// 		实现 getChildren、getTreeItem 等方法为 view 提供数据
+// 2. 与 window、worksapce 等交互
+// 		实现并挂载相应的 onXXX 事件
+// 3. 与文件交互：
+// 		在 1、2 的实现函数中把文件及其内容也处理好。
 export class JsonOutlineProvider implements vscode.TreeDataProvider<number> {
 
+	// 此 event 是本 class 发出，vscode 注册回调函数，并在本 event.fire 的时候执行回调
+	// 这是 provider 向 view 发送命令
 	private _onDidChangeTreeData: vscode.EventEmitter<number | null> = new vscode.EventEmitter<number | null>();
 	readonly onDidChangeTreeData: vscode.Event<number | null> = this._onDidChangeTreeData.event;
+
+	// TreeDataProvider 可以实现的函数有下面4个，这是 view 向 provider 发出命令：
+	// getTreeItem：vscode 需要某个指定 element 的 TreeItem 的时候调用此函数，返回一个节点
+	// getChildren：vscode 需要某个指定 element 的 children 的时候调用此函数，返回节点数组
+	// getParent：同上理，返回节点数组
+	// resolveTreeItem：鼠标停留或单击时，需要解析某个 item 时调用
 
 	private tree: json.Node;
 	private text: string;
@@ -15,6 +31,7 @@ export class JsonOutlineProvider implements vscode.TreeDataProvider<number> {
 	constructor(private context: vscode.ExtensionContext) {
 		vscode.window.onDidChangeActiveTextEditor(() => this.onActiveEditorChanged());
 		vscode.workspace.onDidChangeTextDocument(e => this.onDocumentChanged(e));
+
 		this.autoRefresh = vscode.workspace.getConfiguration('jsonOutline').get('autorefresh');
 		vscode.workspace.onDidChangeConfiguration(() => {
 			this.autoRefresh = vscode.workspace.getConfiguration('jsonOutline').get('autorefresh');
@@ -31,6 +48,9 @@ export class JsonOutlineProvider implements vscode.TreeDataProvider<number> {
 		}
 	}
 
+	// view 中右键 rename，执行 rename 命令：package.josn 中定义
+	// rename 命令关联到这里的 rename 函数：extension.ts 中定义
+	// 会修改 json 中对应的节点内容。
 	rename(offset: number): void {
 		vscode.window.showInputBox({ placeHolder: 'Enter the new label' })
 			.then(value => {
@@ -52,6 +72,9 @@ export class JsonOutlineProvider implements vscode.TreeDataProvider<number> {
 			});
 	}
 
+	// 当 editor 中打开的是 json 文件时，将 jsonOutlineEnabled 上下文设置为 true，否则为 false
+	// 上下文用在 package.json 的 when 中
+	// 效果就是当 jsonOutlineEnabled === true 时才显示本 view
 	private onActiveEditorChanged(): void {
 		if (vscode.window.activeTextEditor) {
 			if (vscode.window.activeTextEditor.document.uri.scheme === 'file') {
@@ -110,6 +133,7 @@ export class JsonOutlineProvider implements vscode.TreeDataProvider<number> {
 		return offsets;
 	}
 
+	// 刷新某个 item 时调用
 	getTreeItem(offset: number): vscode.TreeItem {
 		const path = json.getLocation(this.text, offset).path;
 		const valueNode = json.findNodeAtLocation(this.tree, path);

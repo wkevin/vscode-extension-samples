@@ -3,6 +3,12 @@ import * as vscode from 'vscode';
 export class TestView {
 
 	constructor(context: vscode.ExtensionContext) {
+		// WTF：
+		// provider = new FtpTreeDataProvider(ftpModel);
+		// vscode.window.createTreeView('xxx', { treeDataProvider });
+		// 还可以写成：
+		// vscode.window.createTreeView('xxx', { treeDataProvider: FtpTreeDataProvider(ftpModel), showCollapse: true});
+		// 前者入参是集合，后者入参是字典 —— 这都是啥语法啊！WTF！
 		const view = vscode.window.createTreeView('testView', { treeDataProvider: aNodeWithIdTreeDataProvider(), showCollapseAll: true });
 		context.subscriptions.push(view);
 		vscode.commands.registerCommand('testView.reveal', async () => {

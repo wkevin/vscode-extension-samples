@@ -2,26 +2,11 @@ import * as vscode from 'vscode';
 import * as json from 'jsonc-parser';
 import * as path from 'path';
 
-// 写好一个  view 的 Provider 需要注意几点：
-// 1. 与 View 交互：
-// 		用 onDidChangeTreeData 向 view 发消息
-// 		实现 getChildren、getTreeItem 等方法为 view 提供数据
-// 2. 与 window、worksapce 等交互
-// 		实现并挂载相应的 onXXX 事件
-// 3. 与文件交互：
-// 		在 1、2 的实现函数中把文件及其内容也处理好。
+
 export class JsonOutlineProvider implements vscode.TreeDataProvider<number> {
 
-	// 此 event 是本 class 发出，vscode 注册回调函数，并在本 event.fire 的时候执行回调
-	// 这是 provider 向 view 发送命令
 	private _onDidChangeTreeData: vscode.EventEmitter<number | null> = new vscode.EventEmitter<number | null>();
 	readonly onDidChangeTreeData: vscode.Event<number | null> = this._onDidChangeTreeData.event;
-
-	// TreeDataProvider 可以实现的函数有下面4个，这是 view 向 provider 发出命令：
-	// getTreeItem：vscode 需要某个指定 element 的 TreeItem 的时候调用此函数，返回一个节点
-	// getChildren：vscode 需要某个指定 element 的 children 的时候调用此函数，返回节点数组
-	// getParent：同上理，返回节点数组
-	// resolveTreeItem：鼠标停留或单击时，需要解析某个 item 时调用
 
 	private tree: json.Node;
 	private text: string;
@@ -29,16 +14,40 @@ export class JsonOutlineProvider implements vscode.TreeDataProvider<number> {
 	private autoRefresh = true;
 
 	constructor(private context: vscode.ExtensionContext) {
-		vscode.window.onDidChangeActiveTextEditor(() => this.onActiveEditorChanged());
-		vscode.workspace.onDidChangeTextDocument(e => this.onDocumentChanged(e));
+		// 写好一个  view 的 Provider 需要注意几点：
+		// 1. 与 View 交互：
+		// 		用 onDidChangeTreeData 向 view 发消息
+		// 		实现 getChildren、getTreeItem 等方法为 view 提供数据
+		// 2. 与 window、worksapce 等交互
+		// 		实现并挂载相应的 onXXX 事件
+		// 3. 与文件交互：
+		// 		在 1、2 的实现函数中把文件及其内容也处理好。
 
-		this.autoRefresh = vscode.workspace.getConfiguration('jsonOutline').get('autorefresh');
-		vscode.workspace.onDidChangeConfiguration(() => {
+		/**
+		 * js/ts 的 onXXX 很颠覆我的理解
+		 * 从 qt、mfc 等过来的经验让我觉得应该是个函数指针，所以应该是 onXXX = someFunc()
+		 * 但这里用的是 onXXX( e => somFunc(e))
+		 * F12 跳转的定义可见：
+		 * onXXX 其实是个 Event，Event 是个 interface，这里又会出现第2个颠覆我的地方：
+		 * 从 python 过来的经验让我觉得，onXXX 应该是个 Event 接口的继承类才可以进行实例化，
+		 * 但 js、ts 好像完全不需要，调用的 interface 的构造函数直接实例化一个继承类 —— 是这样么？我还没学过 ts 不敢肯定。
+		 */
+		vscode.window.onDidChangeActiveTextEditor(() => this.onActiveEditorChanged()); // 编辑器切换文件事件
+		vscode.workspace.onDidChangeTextDocument(e => this.onDocumentChanged(e));  // 编辑器文字编辑、变化事件
+
+		// 本扩展的配置项: 是否修改 json 文件时同步、实时的修改 veiw 中条目
+		this.autoRefresh = vscode.workspace.getConfiguration('jsonOutline').get('autorefresh'); // 先读一下配置
+		vscode.workspace.onDidChangeConfiguration(() => {										// 当配置修改时刷新本变量
 			this.autoRefresh = vscode.workspace.getConfiguration('jsonOutline').get('autorefresh');
 		});
 		this.onActiveEditorChanged();
 	}
 
+	/**
+	 * 更新 view 中整个或某条 item
+	 * 
+	 * @param offset json 元素在文件中字符偏移量 —— 还没搞懂谁送进来的？是怎么送进来的？
+	 */
 	refresh(offset?: number): void {
 		this.parseTree();
 		if (offset) {
@@ -73,6 +82,7 @@ export class JsonOutlineProvider implements vscode.TreeDataProvider<number> {
 	}
 
 	// 当 editor 中打开的是 json 文件时，将 jsonOutlineEnabled 上下文设置为 true，否则为 false
+	// 以此来控制整个 view 是否显示
 	// 上下文用在 package.json 的 when 中
 	// 效果就是当 jsonOutlineEnabled === true 时才显示本 view
 	private onActiveEditorChanged(): void {
@@ -89,6 +99,9 @@ export class JsonOutlineProvider implements vscode.TreeDataProvider<number> {
 		}
 	}
 
+	/** 
+	 * 
+	*/
 	private onDocumentChanged(changeEvent: vscode.TextDocumentChangeEvent): void {
 		if (this.autoRefresh && changeEvent.document.uri.toString() === this.editor.document.uri.toString()) {
 			for (const change of changeEvent.contentChanges) {
@@ -111,6 +124,20 @@ export class JsonOutlineProvider implements vscode.TreeDataProvider<number> {
 		}
 	}
 
+	/**
+	 * getChildren 与 getTreeItem 的流程：
+	 * 1. treeview 首先 getChildren(undefined) 找到第一级节点，返回值 <T[]> 数组每个节点绑定 T 作为id，本例 T 就是 offset
+	 * 2. 遍历 <T[]> 数组，调用 getTreeItem(T)，即：把每个 offset 丢给 getTreeItem() 逐个生成节点
+	 * 3. 生成的过程中定义每个 item 的 label、折叠状态、command、icon、上下文
+	 * 4. View 对每个折叠状态为 Expand（即需要展开的）递归调用 1、2、3 …… 一个完整的 view 就生成了
+	 * 5. 如果有 child 但折叠状态为 Collapsed 的，则当点击展开的时候递归调用 1、2、3 步骤。
+	 */
+
+	/**
+	 * getChildren 返回值是个 Thenable<T[]>，这里的 T 与 treeview 中每个 item 绑定
+	 * 当触发 getTreeItem 时，会把 T 传递过去
+	 * 当从 item 触发命令时，T 也会被返回给回调函数——本例子中就是 refresh(), rename()
+	 */
 	getChildren(offset?: number): Thenable<number[]> {
 		if (offset) {
 			const path = json.getLocation(this.text, offset).path;
@@ -130,7 +157,7 @@ export class JsonOutlineProvider implements vscode.TreeDataProvider<number> {
 				offsets.push(childNode.offset);
 			}
 		}
-		return offsets;
+		return offsets; // 这里交给 treeview 的 offsets 数组，可以看做 view 中每个 item 的 id，会传递回多个回调函数
 	}
 
 	// 刷新某个 item 时调用
@@ -139,7 +166,16 @@ export class JsonOutlineProvider implements vscode.TreeDataProvider<number> {
 		const valueNode = json.findNodeAtLocation(this.tree, path);
 		if (valueNode) {
 			const hasChildren = valueNode.type === 'object' || valueNode.type === 'array';
-			const treeItem: vscode.TreeItem = new vscode.TreeItem(this.getLabel(valueNode), hasChildren ? valueNode.type === 'object' ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None);
+
+			// 创建 item，label 是显示文字，是否折叠：如果没有 children 则为 none，有 children 如果是 object 则展开，否则折叠
+			// valueNode.type：
+			//  string：
+			//  array：[...] 方括号定义的
+			// 	object：{...} 大括号定义的
+			const treeItem: vscode.TreeItem = new vscode.TreeItem(this.getLabel(valueNode),
+				hasChildren ?
+					valueNode.type === 'object' ? vscode.TreeItemCollapsibleState.Expanded : vscode.TreeItemCollapsibleState.Collapsed :
+					vscode.TreeItemCollapsibleState.None);
 			treeItem.command = {
 				command: 'extension.openJsonSelection',
 				title: '',

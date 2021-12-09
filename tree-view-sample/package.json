@@ -54,7 +54,8 @@
 				{
 					"id": "jsonOutline",
 					"name": "Json Outline",
-					"when": "jsonOutlineEnabled"
+					"when": "jsonOutlineEnabled",
+					"//": "jsonOutline.ts 中的 onActiveEditorChanged() 设置，表明当前编辑器打开了一个json文件"
 				},
 				{
 					"id": "ftpExplorer",
@@ -85,7 +86,8 @@
 			},
 			{
 				"command": "nodeDependencies.addEntry",
-				"title": "Add"
+				"title": "Add",
+				"//": "没有 icon 的 command 会显示文字"
 			},
 			{
 				"command": "nodeDependencies.editEntry",
@@ -170,7 +172,8 @@
 				},
 				{
 					"command": "nodeDependencies.addEntry",
-					"when": "view == nodeDependencies"
+					"when": "view == nodeDependencies",
+					"//": "没有 group 的 emnu 会隐藏到 。。。 中"
 				},
 				{
 					"command": "jsonOutline.refresh",
@@ -187,11 +190,13 @@
 				{
 					"command": "nodeDependencies.editEntry",
 					"when": "view == nodeDependencies && viewItem == dependency",
-					"group": "inline"
+					"group": "inline",
+					"//": "incline 的会在鼠标略过时显示在行尾"
 				},
 				{
 					"command": "nodeDependencies.deleteEntry",
-					"when": "view == nodeDependencies && viewItem == dependency"
+					"when": "view == nodeDependencies && viewItem == dependency",
+					"//": "没有 group: incline 的需要右键才能显示"
 				},
 				{
 					"command": "jsonOutline.renameNode",

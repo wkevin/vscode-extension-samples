@@ -20,6 +20,8 @@ class TestViewObjectTransferItem extends TestTreeDataTransferItem {
 	}
 }
 
+// 继承自2个 interface
+// DragAndDropController 需要实现 onWillDrop()、onDrop()
 export class TestViewDragAndDrop implements vscode.TreeDataProvider<Node>, vscode.DragAndDropController<Node> {
 	supportedMimeTypes = ['text/treeitems'];
 	private _onDidChangeTreeData: vscode.EventEmitter<Node[] | undefined> = new vscode.EventEmitter<Node[] | undefined>();

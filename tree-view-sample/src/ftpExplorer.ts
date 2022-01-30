@@ -211,6 +211,8 @@ export class FtpExplorer {
 
 	constructor(context: vscode.ExtensionContext) {
 		/* Please note that login information is hardcoded only for this example purpose and recommended not to do it in general. */
+		// 可以这样创建一个临时的 ftp server：
+		// 		python -m pyftpdlib  -p 2121 -w -u 123 -P 321
 		const ftpModel = new FtpModel('127.0.0.1', 2121, '123', '321');
 		const treeDataProvider = new FtpTreeDataProvider(ftpModel);
 		context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider('ftp', treeDataProvider));

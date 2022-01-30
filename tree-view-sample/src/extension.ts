@@ -48,11 +48,33 @@ export function activate(context: vscode.ExtensionContext) {
 	vscode.commands.registerCommand('jsonOutline.renameNode', offset => jsonOutlineProvider.rename(offset));
 	vscode.commands.registerCommand('extension.openJsonSelection', range => jsonOutlineProvider.select(range));
 
-	// Samples of `window.createTreeView`
+	/**
+	 * Samples of `window.createTreeView`
+	 * 函数原型是：
+	 *   export function createTreeView<T>(viewId: string, options: TreeViewOptions<T>): TreeView<T>;
+	 * 下面的2个例子分别是这样用的：
+	 * 1. vscode.window.createTreeView('view-id', { myTreeDataProvider })
+	 * 2. vscode.window.createTreeView('view-id', { treeDataProvider: aNodeWithIdTreeDataProvider(), showCollapseAll: true }
+	 * 
+	 * TreeViewOptions 共 3 个元素
+	 * 		treeDataProvider: TreeDataProvider<T>;
+	 * 		showCollapseAll?: boolean; —— 是否默认全部展开
+	 * 		canSelectMany?: boolean; —— 是否支持 treeitem 多选
+	 * 
+	 * context.subscriptions.push(view); —— 可选
+	 * push 到 context 的这个数组中只是表示扩展 dispose 的时候会自动调 view 的 dispose
+	 */
+
+	// ftpexplorer 这个例子中可以学习 ftp 库的应用，尤其是 connect 中 promise 的使用。
 	new FtpExplorer(context);
+
+	// fileexplorer 例子中 provider 继承自 TreeDataProvider 和 FileSystemProvider，但后者没有使用。
+	// 本例子在 treeview 中显示了文件夹中的内容。
 	new FileExplorer(context);
 
 	// Test View
+	// 演示如何用一个函数创建 TreeDataProvider<T>
+	// 演示 T 是个 {key: string} 时的用法
 	new TestView(context);
 
 	// Drag and Drop proposed API sample

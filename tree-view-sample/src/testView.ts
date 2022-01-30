@@ -3,12 +3,22 @@ import * as vscode from 'vscode';
 export class TestView {
 
 	constructor(context: vscode.ExtensionContext) {
-		// WTF：
-		// provider = new FtpTreeDataProvider(ftpModel);
-		// vscode.window.createTreeView('xxx', { treeDataProvider });
-		// 还可以写成：
-		// vscode.window.createTreeView('xxx', { treeDataProvider: FtpTreeDataProvider(ftpModel), showCollapse: true});
-		// 前者入参是集合，后者入参是字典 —— 这都是啥语法啊！WTF！
+		/**
+		 * [Q]
+		 * provider = new FtpTreeDataProvider(ftpModel);
+		 * vscode.window.createTreeView('xxx', { provider });
+		 * 还可以写成：
+		 * vscode.window.createTreeView('xxx', { treeDataProvider: FtpTreeDataProvider(ftpModel), showCollapse: true});
+		 * 前者入参是集合，后者入参是字典 —— 这都是啥语法啊！WTF！
+		 * [A]
+		 * createTreeView() 的原型是：
+		   *   export function createTreeView<T>(viewId: string, options: TreeViewOptions<T>): TreeView<T>;
+		 * TreeViewOptions 共 3 个元素
+		 * 		treeDataProvider: TreeDataProvider<T>;
+		 * 		showCollapseAll?: boolean; —— 是否默认全部展开
+		 * 		canSelectMany?: boolean; —— 是否支持 treeitem 多选
+		 * 
+		 */
 		const view = vscode.window.createTreeView('testView', { treeDataProvider: aNodeWithIdTreeDataProvider(), showCollapseAll: true });
 		context.subscriptions.push(view);
 		vscode.commands.registerCommand('testView.reveal', async () => {
@@ -26,6 +36,7 @@ export class TestView {
 	}
 }
 
+// aa 必须排在 a 后面，aaa 必须排在 aa 后面……具体参考 getTreeElement()
 const tree = {
 	'a': {
 		'aa': {
@@ -88,6 +99,7 @@ function getTreeItem(key: string): vscode.TreeItem {
 }
 
 function getTreeElement(element): any {
+	// 用 tree 中的字母以此查找，所以 tree 中的 aaa 必须排在 aa 后面，否则就找不出来了
 	let parent = tree;
 	for (let i = 0; i < element.length; i++) {
 		parent = parent[element.substring(0, i + 1)];
@@ -95,7 +107,7 @@ function getTreeElement(element): any {
 			return null;
 		}
 	}
-	return parent;
+	return parent; // 此时的 parent 已经是 child 了
 }
 
 function getNode(key: string): { key: string } {

@@ -298,7 +298,19 @@ export class FileSystemProvider implements vscode.TreeDataProvider<Entry>, vscod
 export class FileExplorer {
 	constructor(context: vscode.ExtensionContext) {
 		const treeDataProvider = new FileSystemProvider();
+		vscode.window.createTreeView('fileExplorer', { treeDataProvider });
 		context.subscriptions.push(vscode.window.createTreeView('fileExplorer', { treeDataProvider }));
+		/**
+		 * [Q]
+		 * 如何理解这个 resource ，是谁传递过来的？
+		 * [A]
+		 * 首先，这里不传递 resource，这里只是注册命令与处理函数，调用的这个命令的地方才负责提供 resource 这个入参
+		 * 本文件中，调用的地方在
+		 * 		treeItem.command = { command: 'fileExplorer.openFile', title: "Open File", arguments: [element.uri], };
+		 * element.uri —— 就是这个 resource
+		 * 所以：
+		 * 这里只是声明了命令处理的格式，调用时用 'fileExplorer.openFile' 这个命令 id，并传入 resource 参数。
+		 */
 		vscode.commands.registerCommand('fileExplorer.openFile', (resource) => this.openResource(resource));
 	}
 
